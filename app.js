@@ -1,10 +1,12 @@
 require("dotenv").config();
 const express = require("express");
 const app = express();
+const authRoute = require("./routes/authRoutes");
 const { connectDb } = require("./config/db");
-const endpoint = require("./config/endPoint");
 
-connectDb(endpoint.db.user);
+connectDb();
+
+app.use("/api/auth", authRoute);
 
 app.listen(process.env.port, () => {
   console.log(

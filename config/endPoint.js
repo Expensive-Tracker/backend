@@ -6,11 +6,11 @@ const endpoint = {
   },
   route: {
     auth: {
-      registration: "/api/auth/register",
-      login: "/api/auth/login",
-      loggedUser: "/api/auth/user",
-      updProfile: "/api/auth/update-profile",
-      passwordChange: "/api/auth/change-password",
+      registration: "/register",
+      login: "/login",
+      loggedUser: "/user",
+      updProfile: "/update-profile",
+      passwordChange: "/change-password",
     },
     transaction: {
       newTransaction: "/api/transactions",
