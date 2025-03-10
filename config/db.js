@@ -3,7 +3,7 @@ const URL = process.env.DB_URL;
 
 const connectDb = async () => {
   try {
-    await mongo.createConnection(URL);
+    await mongo.connect(URL);
     console.log("Database connected");
   } catch (err) {
     console.error("error connecting to Database", err.message);
