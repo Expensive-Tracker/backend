@@ -1,6 +1,8 @@
 const {
   registerUserServices,
   loginUserService,
+  updateUserService,
+  changePasswordService,
 } = require("../services/authServices");
 
 const registerUser = async (req, res) => {
@@ -46,7 +48,45 @@ const loginUser = async (req, res) => {
   res.end();
 };
 
+const updateUser = async (req, res) => {
+  const userData = req.body;
+  try {
+    const response = await updateUserService(userData);
+    console.log("Update user Response =>>>>>>", response);
+    if (response) {
+      return res.status(200).json({
+        message: "Update Successful",
+        data: response,
+      });
+    } else {
+      return res.status(400).json({ message: "User don't exits" });
+    }
+  } catch (err) {
+    throw new Error(err?.message);
+  }
+};
+
+const changePassword = async (req, res) => {
+  const userData = req.body;
+  try {
+    const response = await changePasswordService(userData);
+    console.log("ChangePassword Response =>>>>>>", response);
+    if (response) {
+      return res.status(200).json({
+        message: "Password Updated Successful",
+        data: response,
+      });
+    } else {
+      return res.status(400).json({ message: "User don't exits" });
+    }
+  } catch (err) {
+    throw new Error(err?.message);
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
+  updateUser,
+  changePassword,
 };
