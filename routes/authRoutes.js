@@ -5,8 +5,10 @@ const {
   registerUser,
   loginUser,
   updateUser,
-  ChangePassword,
+  changePassword,
+  deleteUser,
 } = require("../controllers/authController");
+const authMiddleWare = require("../middleware/authMiddleWare");
 
 const userRoute = endpoint.auth;
 
@@ -18,18 +20,18 @@ router.post(userRoute.registration, (req, res) => {
   registerUser(req, res);
 });
 
-router.post(userRoute.updProfile, (req, res) => {
+router.put(userRoute.updProfile, authMiddleWare, (req, res) => {
   updateUser(req, res);
 });
 
-router.post(userRoute.passwordChange, (req, res) => {
-  ChangePassword(req, res);
+router.put(userRoute.passwordChange, authMiddleWare, (req, res) => {
+  changePassword(req, res);
+});
+
+router.delete(userRoute.deleteUser, authMiddleWare, (req, res) => {
+  deleteUser(req, res);
 });
 
 // M@JzQ!8@#tLp_rm
-
-router.post(userRoute.updProfile, () => {});
-
-router.post(userRoute.passwordChange, () => {});
 
 module.exports = router;

@@ -3,6 +3,7 @@ const {
   loginUserService,
   updateUserService,
   changePasswordService,
+  deleteUserService,
 } = require("../services/authServices");
 
 const registerUser = async (req, res) => {
@@ -10,8 +11,10 @@ const registerUser = async (req, res) => {
   try {
     const response = await registerUserServices(userData);
     if (!response) {
-      return res.status(400).json({ message: "User Exits, try LogIn" });
+      return res.status(400).json({ message: "User Exits, Try Login" });
     } else {
+      if (typeof response === "number")
+        return res.status(400).json({ message: "Username Should Be Unique" });
       return res.status(200).json({
         message: "Registration Successful",
         data: { ...response },
@@ -70,7 +73,6 @@ const changePassword = async (req, res) => {
   const userData = req.body;
   try {
     const response = await changePasswordService(userData);
-    console.log("ChangePassword Response =>>>>>>", response);
     if (response) {
       return res.status(200).json({
         message: "Password Updated Successful",
@@ -84,9 +86,24 @@ const changePassword = async (req, res) => {
   }
 };
 
+const deleteUser = async (req, res) => {
+  const userData = req.body;
+  try {
+    const response = await deleteUserService(userData);
+    if (response) {
+      return res.status(200).json({ ...response });
+    } else {
+      return res.status(400).json({ message: "User don't exits" });
+    }
+  } catch (err) {
+    throw new Error(err?.message);
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   updateUser,
   changePassword,
+  deleteUser,
 };

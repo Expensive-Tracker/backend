@@ -1,6 +1,5 @@
 const { user } = require("../models/user");
 const cloudinary = require("cloudinary").v2;
-const multer = require("multer");
 const JWT_SECRET = process.env.JWT_SECRET;
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
@@ -12,24 +11,24 @@ cloudinary.config({
   api_secret: process.env.IMAGE_SAVE_API,
 });
 
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
-
 const registerUserServices = async (userData) => {
   const userExits = await user.findOne({ email: userData?.email }).exec();
+  const notUniqueUserName = await user.findOne({
+    username: userData?.username,
+  });
   if (userExits) {
     return false;
   } else {
+    if (notUniqueUserName) return 1;
     const hashPassword = await bcrypt.hash(userData?.password, saltLevel);
     const createdAt = getCreatedAt();
-    const profilePic = await handleMakeUrl(userData?.profilePic);
-
+    const profilePicUrl = await handleMakeUrl(userData?.profilePic);
     const saveUser = await user.create({
       ...userData,
       password: hashPassword,
       createdAt,
       updatedAt: createdAt,
-      profilePic: profilePic || "",
+      profilePic: profilePicUrl || "",
     });
     const credential = {
       email: saveUser?.email,
@@ -37,7 +36,7 @@ const registerUserServices = async (userData) => {
     };
     const token = generateToken(credential);
     return {
-      data: saveUser,
+      data: saveUser._doc,
       token,
     };
   }
@@ -69,9 +68,24 @@ const loginUserService = async (userData) => {
 };
 
 const updateUserService = async (userData) => {
-  const userExits = await user.findOne({ email: userData?.email });
+  const userExits = await user.findOne({ id: userData?.id });
   if (userExits) {
-    const updatedUser = await user.updateOne(userExits, userData);
+    const updatedAt = getCreatedAt();
+    const userToSave = {
+      ...userData,
+      updatedAt,
+      password: userExits?.password,
+      profilePic: userData?.profilePic
+        ? userData?.profilePic
+        : userExits?.profilePic,
+    };
+    const updatedUser = await user.findByIdAndUpdate(
+      userData._id,
+      {
+        ...userToSave,
+      },
+      { new: true, runValidators: true }
+    );
     return updatedUser._doc;
   } else {
     return false;
@@ -81,20 +95,43 @@ const updateUserService = async (userData) => {
 const changePasswordService = async (userData) => {
   const userExits = await user.findOne({ email: userData?.email });
   if (userExits) {
+    const updatedAt = getCreatedAt();
+    const isPasswordSame = await bcrypt.compare(
+      userData?.password,
+      userExits?.password
+    );
     const updatedHashPassword = await bcrypt.hash(
       userData?.password,
       saltLevel
     );
-    const updatedUser = await user.updateOne({
-      ...userExits,
+    const changesToSave = {
+      ...userData,
       password: updatedHashPassword,
-    });
+      updatedAt,
+    };
+    const updatedUser = await user.findByIdAndUpdate(
+      userData?._id,
+      {
+        ...changesToSave,
+      },
+      { new: true, runValidators: true }
+    );
     const credential = {
       email: updatedUser?.email,
       password: updatedHashPassword,
     };
     const newTokrn = generateToken(credential);
     return { updatedUser, newTokrn };
+  } else {
+    return false;
+  }
+};
+
+const deleteUserService = async (userData) => {
+  const userExits = await user.findOne({ email: userData?.email });
+  if (userExits) {
+    const deletedUser = await user.findByIdAndDelete(userData?._id);
+    return { success: deletedUser ? "User deleted" : "Unable to delete user" };
   } else {
     return false;
   }
@@ -145,4 +182,5 @@ module.exports = {
   loginUserService,
   updateUserService,
   changePasswordService,
+  deleteUserService,
 };
