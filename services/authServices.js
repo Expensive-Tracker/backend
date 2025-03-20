@@ -53,8 +53,8 @@ const loginUserService = async (userData) => {
       return false;
     } else {
       const credential = {
-        email: userData?.email,
-        password: userData?.password,
+        email: userExits?.email,
+        password: userExits?.password,
       };
       const token = generateToken(credential);
       return {
@@ -69,7 +69,13 @@ const loginUserService = async (userData) => {
 
 const updateUserService = async (userData) => {
   const userExits = await user.findOne({ id: userData?.id });
+  const notUniqueUserName = await user.findOne({
+    username: userData?.username,
+  });
   if (userExits) {
+    if (notUniqueUserName) {
+      return 1;
+    }
     const updatedAt = getCreatedAt();
     const userToSave = {
       ...userData,
@@ -96,10 +102,6 @@ const changePasswordService = async (userData) => {
   const userExits = await user.findOne({ email: userData?.email });
   if (userExits) {
     const updatedAt = getCreatedAt();
-    const isPasswordSame = await bcrypt.compare(
-      userData?.password,
-      userExits?.password
-    );
     const updatedHashPassword = await bcrypt.hash(
       userData?.password,
       saltLevel

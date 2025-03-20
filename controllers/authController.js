@@ -57,10 +57,16 @@ const updateUser = async (req, res) => {
     const response = await updateUserService(userData);
     console.log("Update user Response =>>>>>>", response);
     if (response) {
-      return res.status(200).json({
-        message: "Update Successful",
-        data: response,
-      });
+      if (typeof response == "number") {
+        return res.status(400).json({
+          message: "Username should be unique",
+        });
+      } else {
+        return res.status(200).json({
+          message: "Update Successful",
+          data: response,
+        });
+      }
     } else {
       return res.status(400).json({ message: "User don't exits" });
     }
