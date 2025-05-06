@@ -7,6 +7,8 @@ const {
   updateUser,
   changePassword,
   deleteUser,
+  emailValidation,
+  otpVerification,
 } = require("../controllers/authController");
 const authMiddleWare = require("../middleware/authMiddleWare");
 
@@ -20,11 +22,19 @@ router.post(userRoute.registration, (req, res) => {
   registerUser(req, res);
 });
 
+router.post(userRoute.emailValidation, (req, res) => {
+  emailValidation(req, res);
+});
+
+router.post(userRoute.otpVerification, (req, res) => {
+  otpVerification(req, res);
+});
+
 router.put(userRoute.updProfile, authMiddleWare, (req, res) => {
   updateUser(req, res);
 });
 
-router.put(userRoute.passwordChange, authMiddleWare, (req, res) => {
+router.put(userRoute.passwordChange, (req, res) => {
   changePassword(req, res);
 });
 

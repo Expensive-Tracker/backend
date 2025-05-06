@@ -2,8 +2,19 @@ const { user } = require("../models/user");
 const cloudinary = require("cloudinary").v2;
 const JWT_SECRET = process.env.JWT_SECRET;
 const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
 const bcrypt = require("bcryptjs");
 const saltLevel = 10;
+
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
+  auth: {
+    user: process.env.MAILID,
+    pass: process.env.PASSWORD,
+  },
+});
 
 cloudinary.config({
   cloud_name: process.env.IMAGE_SAVE_NAME,
@@ -22,13 +33,18 @@ const registerUserServices = async (userData) => {
     if (notUniqueUserName) return 1;
     const hashPassword = await bcrypt.hash(userData?.password, saltLevel);
     const createdAt = getCreatedAt();
-    const profilePicUrl = await handleMakeUrl(userData?.profilePic);
+    let profilePicUrl;
+    if (userData?.profilePic) {
+      profilePicUrl = await handleMakeUrl(userData?.profilePic);
+    }
     const saveUser = await user.create({
       ...userData,
       password: hashPassword,
       createdAt,
       updatedAt: createdAt,
       profilePic: profilePicUrl || "",
+      otp: "",
+      otpExpire: null,
     });
     const credential = {
       email: saveUser?.email,
@@ -43,7 +59,14 @@ const registerUserServices = async (userData) => {
 };
 
 const loginUserService = async (userData) => {
-  const userExits = await user.findOne({ email: userData?.email });
+  const userExits = await user.findOne({
+    $or: [
+      { email: userData?.userNameOrEmail },
+      {
+        username: userData?.userNameOrEmail,
+      },
+    ],
+  });
   if (userExits) {
     const isPasswordSame = await bcrypt.compare(
       userData?.password,
@@ -106,24 +129,17 @@ const changePasswordService = async (userData) => {
       userData?.password,
       saltLevel
     );
-    const changesToSave = {
-      ...userData,
-      password: updatedHashPassword,
-      updatedAt,
-    };
-    const updatedUser = await user.findByIdAndUpdate(
-      userData?._id,
+    const updatedUser = await user.findOneAndUpdate(
+      { email: userExits?.email },
       {
-        ...changesToSave,
+        $set: {
+          password: updatedHashPassword,
+          updatedAt,
+        },
       },
       { new: true, runValidators: true }
     );
-    const credential = {
-      email: updatedUser?.email,
-      password: updatedHashPassword,
-    };
-    const newTokrn = generateToken(credential);
-    return { updatedUser, newTokrn };
+    return { updatedUser };
   } else {
     return false;
   }
@@ -138,6 +154,52 @@ const deleteUserService = async (userData) => {
     return false;
   }
 };
+
+const handleEmailValidateService = async (userData) => {
+  const userExits = await user.findOne({ email: userData?.email });
+  try {
+    if (userExits) {
+      const otp = generateOTP();
+      const otpExpire = new Date(Date.now() + 10 * 60 * 1000);
+      const mailOptions = {
+        from: '"Expensive Tracker" <ker.rahul26@gmail.com>',
+        to: userData.email,
+        subject: "Your OTP Code",
+        text: `Your OTP code is: ${otp}`,
+      };
+      await transporter.sendMail(mailOptions);
+      await user.findByIdAndUpdate(userExits._id, {
+        otp,
+        otpExpire,
+      });
+      const otpToken = generateToken(otp);
+      return { otpToken };
+    } else {
+      return false;
+    }
+  } catch (err) {
+    console.error(err.message);
+  }
+};
+
+const otpVerificationService = async (userData) => {
+  const userExits = await user.findOne({ email: userData?.email });
+  if (userExits) {
+    if (!userExits.otp || !userExits.otpExpire) return 1;
+    if (new Date() > userExits.otpExpire) return "string";
+    if (userData.otp !== userExits.otp) return undefined;
+    await user.findByIdAndUpdate(userExits._id, { otp: "", otpExpire: null });
+    const correctOtpToken = generateToken(userData.otp);
+    return { message: "Otp is correct", correctOtpToken };
+  } else {
+    return false;
+  }
+};
+
+// common function
+function generateOTP() {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+}
 
 function generateToken(data) {
   const payload = {
@@ -185,4 +247,6 @@ module.exports = {
   updateUserService,
   changePasswordService,
   deleteUserService,
+  handleEmailValidateService,
+  otpVerificationService,
 };

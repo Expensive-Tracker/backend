@@ -6,6 +6,8 @@ const endpoint = {
     updProfile: "/update-profile",
     passwordChange: "/change-password",
     deleteUser: "/delete-user",
+    emailValidation: "/email-valid",
+    otpVerification: "/otp-verification",
   },
   transaction: {
     newTransaction: "/transactions",

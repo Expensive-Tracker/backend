@@ -17,6 +17,8 @@ const UserSchema = new Schema({
   profilePic: String,
   createdAt: Date,
   updatedAt: Date,
+  otp: String,
+  otpExpire: Date,
 });
 const user = mongo.model("user", UserSchema, "Users");
 
