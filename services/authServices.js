@@ -46,13 +46,19 @@ const registerUserServices = async (userData) => {
       otp: "",
       otpExpire: null,
     });
+    const dataToSend = {
+      ...userData,
+      createdAt,
+      updatedAt: createdAt,
+      profilePic: profilePicUrl || "",
+    };
     const credential = {
       email: saveUser?.email,
       password: saveUser?.password,
     };
     const token = generateToken(credential);
     return {
-      data: saveUser._doc,
+      data: dataToSend,
       token,
     };
   }
@@ -79,9 +85,12 @@ const loginUserService = async (userData) => {
         email: userExits?.email,
         password: userExits?.password,
       };
+      const userDetail = { ...userExits._doc };
+      delete userDetail.otp;
+      delete userDetail.otpExpire;
       const token = generateToken(credential);
       return {
-        detail: { ...userExits._doc },
+        detail: { ...userDetail },
         token,
       };
     }
