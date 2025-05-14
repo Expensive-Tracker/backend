@@ -2,6 +2,7 @@ const { user } = require("../models/user");
 const cloudinary = require("cloudinary").v2;
 const JWT_SECRET = process.env.JWT_SECRET;
 const jwt = require("jsonwebtoken");
+const fs = require("fs");
 const nodemailer = require("nodemailer");
 const bcrypt = require("bcryptjs");
 const saltLevel = 10;
@@ -34,8 +35,8 @@ const registerUserServices = async (userData) => {
     const hashPassword = await bcrypt.hash(userData?.password, saltLevel);
     const createdAt = getCreatedAt();
     let profilePicUrl;
-    if (userData?.profilePic) {
-      profilePicUrl = await handleMakeUrl(userData?.profilePic);
+    if (userData?.profilePic && userData?.profilePic.path) {
+      profilePicUrl = await handleMakeUrl(userData.profilePic);
     }
     const saveUser = await user.create({
       ...userData,
@@ -52,6 +53,7 @@ const registerUserServices = async (userData) => {
       updatedAt: createdAt,
       profilePic: profilePicUrl || "",
     };
+    delete dataToSend["password"];
     const credential = {
       email: saveUser?.email,
       password: saveUser?.password,
@@ -223,30 +225,23 @@ function getCreatedAt() {
   return date;
 }
 
-async function handleMakeUrl(image) {
-  if (!image) return "";
+async function handleMakeUrl(file) {
+  if (!file) return "";
   try {
-    return new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        { folder: "profile_pics" },
-        (err, img) => {
-          if (err) {
-            reject(
-              new Error("Error uploading image to Cloudinary: " + err.message)
-            );
-          } else {
-            resolve(img.secure_url);
-          }
-        }
-      );
-      if (image.stream) {
-        image.stream.pipe(uploadStream);
+    const result = await cloudinary.uploader.upload(file.path, {
+      folder: "profile_pics",
+    });
+
+    fs.unlink(file.path, (err) => {
+      if (err) {
+        console.error("Error deleting local image:", err);
       } else {
-        reject(new Error("Invalid image stream"));
+        console.log("Local image deleted:", file.path);
       }
     });
+    return result.secure_url;
   } catch (err) {
-    throw new Error("Error handling image upload: " + err.message);
+    throw new Error("Error uploading image to Cloudinary: " + err.message);
   }
 }
 

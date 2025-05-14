@@ -7,14 +7,15 @@ const transactionRoute = require("./routes/transactionRoute");
 const analyticsRoute = require("./routes//analyticsRoute");
 const budgetRoute = require("./routes/budgetRoutes");
 const { connectDb } = require("./config/db");
+const errorHandler = require("./middleware/errorHandler");
 
 connectDb();
 
 app.use(
   cors({
-    origin: "http://localhost:3000", // Allow only this origin
+    origin: "http://localhost:3000",
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    credentials: true, // Enable if using cookies or authentication
+    credentials: true,
   })
 );
 
@@ -27,6 +28,8 @@ app.use("/api", transactionRoute);
 app.use("/api", budgetRoute);
 
 app.use("/api/analytics", analyticsRoute);
+
+app.use(errorHandler);
 
 app.listen(process.env.port, () => {
   console.log(

@@ -11,6 +11,7 @@ const {
   otpVerification,
 } = require("../controllers/authController");
 const authMiddleWare = require("../middleware/authMiddleWare");
+const upload = require("../middleware/imageMiddleWare");
 
 const userRoute = endpoint.auth;
 
@@ -18,7 +19,10 @@ router.post(userRoute.login, async (req, res) => {
   loginUser(req, res);
 });
 
-router.post(userRoute.registration, (req, res) => {
+router.post(userRoute.registration, upload.single("profilePic"), (req, res) => {
+  if (req.file) {
+    req.body.profilePic = req.file;
+  }
   registerUser(req, res);
 });
 
