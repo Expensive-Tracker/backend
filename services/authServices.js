@@ -35,8 +35,9 @@ const registerUserServices = async (userData) => {
     const hashPassword = await bcrypt.hash(userData?.password, saltLevel);
     const createdAt = getCreatedAt();
     let profilePicUrl;
-    if (userData?.profilePic && userData?.profilePic.path) {
-      profilePicUrl = await handleMakeUrl(userData.profilePic);
+    console.log(userData?.profilePic && userData.profilePic.path);
+    if (userData?.profilePic) {
+      profilePicUrl = await handleMakeUrl(userData?.profilePic);
     }
     const saveUser = await user.create({
       ...userData,

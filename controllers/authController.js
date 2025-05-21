@@ -9,7 +9,10 @@ const {
 } = require("../services/authServices");
 
 const registerUser = async (req, res) => {
-  const userData = req.body;
+  const userData = { ...req.body };
+  if (req.file) {
+    userData.profilePic = req.file;
+  }
   try {
     const response = await registerUserServices(userData);
     res.setHeader("Content-Type", "application/json");
