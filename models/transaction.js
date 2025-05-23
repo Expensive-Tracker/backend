@@ -4,28 +4,28 @@ const { Schema, mongo } = require("./user");
 const transactionSchema = new Schema({
   userId: {
     type: Types.ObjectId,
-    require: true,
+    required: true,
     ref: "Users",
   },
   type: {
     type: String,
-    require: true,
+    required: true,
   },
   amount: {
     type: Number,
-    require: true,
+    required: true,
   },
   category: {
     type: String,
-    require: true,
+    required: true,
   },
   description: {
     type: String,
-    require: true,
+    required: true,
   },
   date: {
     type: Date,
-    require: true,
+    required: true,
   },
   createdAt: Date,
   updatedAt: Date,

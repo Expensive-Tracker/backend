@@ -50,6 +50,7 @@ const registerUserServices = async (userData) => {
     });
     const dataToSend = {
       ...userData,
+      _id: saveUser._id,
       createdAt,
       updatedAt: createdAt,
       profilePic: profilePicUrl || "",
@@ -57,7 +58,7 @@ const registerUserServices = async (userData) => {
     delete dataToSend["password"];
     const credential = {
       email: saveUser?.email,
-      password: saveUser?.password,
+      _id: saveUser?._id,
     };
     const token = generateToken(credential);
     return {
@@ -71,11 +72,10 @@ const loginUserService = async (userData) => {
   const userExits = await user.findOne({
     $or: [
       { email: userData?.userNameOrEmail },
-      {
-        username: userData?.userNameOrEmail,
-      },
+      { username: userData?.userNameOrEmail },
     ],
   });
+
   if (userExits) {
     const isPasswordSame = await bcrypt.compare(
       userData?.password,
@@ -86,7 +86,7 @@ const loginUserService = async (userData) => {
     } else {
       const credential = {
         email: userExits?.email,
-        password: userExits?.password,
+        _id: userExits?._id,
       };
       const userDetail = { ...userExits._doc };
       delete userDetail.otp;
@@ -214,11 +214,29 @@ function generateOTP() {
 }
 
 function generateToken(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error(
+      "Invalid data provided to generateToken. Expected a non-array object."
+    );
+  }
+  if (!data._id || !data.email) {
+    throw new Error(
+      "Missing required fields in token payload: '_id' and 'email' are required."
+    );
+  }
+  if (!JWT_SECRET) {
+    throw new Error("JWT_SECRET is not defined in environment variables.");
+  }
   const payload = {
-    ...data,
+    _id: data._id,
+    email: data.email,
   };
-  const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "1h" });
-  return token;
+  try {
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "1h" });
+    return token;
+  } catch (err) {
+    throw new Error("Failed to generate JWT token: " + err.message);
+  }
 }
 
 function getCreatedAt() {
@@ -254,4 +272,5 @@ module.exports = {
   deleteUserService,
   handleEmailValidateService,
   otpVerificationService,
+  getCreatedAt,
 };

@@ -8,10 +8,10 @@ const {
   handleGetSingleTransaction,
   handleGetTransaction,
   handleUpdateTransaction,
-} = require("../controllers/transactionController");
+} = require("../controllers/transactionController.controller");
 const transactionRoute = endpoint.transaction;
 
-router.get(transactionRoute.getUserTransaction, authMiddleWare, (req, res) => {
+router.post(transactionRoute.getUserTransaction, authMiddleWare, (req, res) => {
   handleGetTransaction(req, res);
 });
 router.post(transactionRoute.newTransaction, authMiddleWare, (req, res) => {

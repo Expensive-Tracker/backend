@@ -9,7 +9,7 @@ const {
   deleteUser,
   emailValidation,
   otpVerification,
-} = require("../controllers/authController");
+} = require("../controllers/authController.controller");
 const authMiddleWare = require("../middleware/authMiddleWare");
 const upload = require("../middleware/imageMiddleWare");
 

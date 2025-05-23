@@ -1,11 +1,11 @@
 require("dotenv").config();
 const express = require("express");
 const app = express();
-const authRoute = require("./routes/authRoutes");
+const authRoute = require("./routes/authRoutes.route");
 const cors = require("cors");
-const transactionRoute = require("./routes/transactionRoute");
-const analyticsRoute = require("./routes//analyticsRoute");
-const budgetRoute = require("./routes/budgetRoutes");
+const transactionRoute = require("./routes/transactionRoute.route");
+const analyticsRoute = require("./routes//analyticsRoute.route");
+const budgetRoute = require("./routes/budgetRoutes.route");
 const { connectDb } = require("./config/db");
 const errorHandler = require("./middleware/errorHandler");
 
