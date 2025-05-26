@@ -10,7 +10,7 @@ const endpoint = {
     otpVerification: "/otp-verification",
   },
   transaction: {
-    newTransaction: "/transactions",
+    newTransaction: "/transactions/new",
     getUserTransaction: "/transactions",
     specificTransition: "/transactions/:id",
     updTransition: "/transactions/:id",

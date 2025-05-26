@@ -86,6 +86,7 @@ const createNewTransactionService = async (req) => {
   const data = req.body;
   const id = data._id;
   delete data["_id"];
+  if (!data["description"]) data["description"] = "-";
   const dateForCreation = getCreatedAt();
   const dataToSave = {
     userId: id,
@@ -103,7 +104,6 @@ const createNewTransactionService = async (req) => {
 
 const deleteTransactionService = async (req) => {
   const transactionId = req.params["id"];
-  console.log(transactionId);
   if (!transactionId) {
     return false;
   }
