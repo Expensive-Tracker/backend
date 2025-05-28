@@ -35,7 +35,6 @@ const registerUserServices = async (userData) => {
     const hashPassword = await bcrypt.hash(userData?.password, saltLevel);
     const createdAt = getCreatedAt();
     let profilePicUrl;
-    console.log(userData?.profilePic && userData.profilePic.path);
     if (userData?.profilePic) {
       profilePicUrl = await handleMakeUrl(userData?.profilePic);
     }
@@ -174,7 +173,7 @@ const handleEmailValidateService = async (userData) => {
       const otp = generateOTP();
       const otpExpire = new Date(Date.now() + 10 * 60 * 1000);
       const mailOptions = {
-        from: '"Expensive Tracker" <ker.rahul26@gmail.com>',
+        from: '"Expensive Tracker" <kerrahul10@gmail.com>',
         to: userData.email,
         subject: "Your OTP Code",
         text: `Your OTP code is: ${otp}`,

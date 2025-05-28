@@ -22,8 +22,11 @@ const getTransactionService = async (req) => {
       { description: { $regex: search, $options: "i" } },
     ];
   }
-  if (filter.type) query.type = filter.type;
-  if (filter.category) query.category = filter.category;
+  if (filter.type)
+    query.type = filter.type.charAt(0).toUpperCase() + filter.type.slice(1);
+  if (filter.category)
+    query.category =
+      filter.category.charAt(0).toUpperCase() + filter.category.slice(1);
   const startDate = filter.startDate || filter.date?.startDate;
   const endDate = filter.endDate || filter.date?.endDate;
   if (startDate && endDate) {
@@ -37,6 +40,7 @@ const getTransactionService = async (req) => {
     .sort({ [sortBy]: sortOrder === "asc" ? 1 : -1 })
     .skip(Number(skip))
     .limit(Number(limit));
+
   const total = await transaction.countDocuments(query);
   const totalPages = Math.ceil(total / limit);
   return {
@@ -54,7 +58,6 @@ const getTransactionService = async (req) => {
 
 const getSpecificTransactionService = async (req) => {
   const transactionId = req.params["id"];
-  console.log(transactionId);
   if (!transactionId) {
     return false;
   }
