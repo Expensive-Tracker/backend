@@ -27,7 +27,7 @@ const handleGetUserBudget = async (userId) => {
     },
   }));
   userBudget.month = currentMonth;
-  userBudget.updatedAt = getCreatedAt;
+  userBudget.updatedAt = getCreatedAt();
 
   await userBudget.save();
 
@@ -112,7 +112,12 @@ const handleEditSubBudget = async (budgetId, subBudgetId, data) => {
     return "string";
   }
 
-  return result;
+  const updatedBudget = await budget.findById(budgetId, {
+    category: 1,
+    _id: 0,
+  });
+
+  return updatedBudget.category;
 };
 
 const handleDeleteBudget = async (id) => {

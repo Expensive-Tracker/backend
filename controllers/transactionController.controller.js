@@ -12,9 +12,9 @@ const handleGetTransaction = async (req, res) => {
     if (typeof result === "object") {
       return res.status(200).json({ message: "transaction fetched", result });
     } else if (typeof result === "number") {
-      return res.status(400).json({ message: "There are no transaction" });
+      return res.status(404).json({ message: "There are no transaction" });
     } else {
-      return res.status(400).json({ message: result });
+      return res.status(404).json({ message: result });
     }
   } catch (err) {
     console.error(err?.message);
@@ -38,7 +38,7 @@ const handleGetSingleTransaction = async (req, res) => {
   try {
     const result = await getSpecificTransactionService(req);
     if (typeof result === "string" || typeof result === "boolean") {
-      return res.status(400).json({
+      return res.status(404).json({
         message: `There is no transaction with ${req.params["id"]}`,
       });
     } else {
@@ -59,7 +59,7 @@ const handleUpdateTransaction = async (req, res) => {
   try {
     const result = await updateTransactionService(req);
     if (typeof result === "string" || typeof result === "boolean") {
-      return res.status(400).json({
+      return res.status(404).json({
         message: "something went wrong",
       });
     } else {
@@ -76,7 +76,7 @@ const handleDeleteTransaction = async (req, res) => {
   try {
     const result = await deleteTransactionService(req);
     if (typeof result === "string" || typeof result === "boolean") {
-      return res.status(400).json({
+      return res.status(404).json({
         message: "something went wrong",
       });
     } else {

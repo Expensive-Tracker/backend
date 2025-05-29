@@ -18,11 +18,14 @@ const endpoint = {
     totalExpense: "/transactions/summary",
   },
   budgets: {
-    monthlyBudgets: "/budgets",
+    monthlyBudgets: "/budgets/:month",
     allBudgets: "/budgets",
+    subBudgetCreate: "/budgets/subBudget",
     specificBudgets: "/budgets/:id",
     updBudgets: "/budgets/:id",
+    updSubBudgets: "/budgets/subBudget/:id",
     DeleteBudgets: "/budgets/:id",
+    subDeleteBudgets: "/budgets/subBudget/:id",
   },
   analytics: {
     totalIncome: "/summary",
