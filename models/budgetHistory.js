@@ -1,5 +1,6 @@
 const { Types } = require("mongoose");
 const { Schema, mongo } = require("./user");
+const { subBudgetSchema } = require("./budget");
 
 const budgetHistorySchema = new Schema({
   userId: {
@@ -19,4 +20,4 @@ const budgetHistory = mongo.model(
   "BudgetHistory"
 );
 
-module.exports = { budget, budgetHistory };
+module.exports = budgetHistory;

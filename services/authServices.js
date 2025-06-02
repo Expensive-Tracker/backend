@@ -53,6 +53,7 @@ const registerUserServices = async (userData) => {
       createdAt,
       updatedAt: createdAt,
       profilePic: profilePicUrl || "",
+      isNew: true,
     };
     delete dataToSend["password"];
     const credential = {

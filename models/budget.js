@@ -39,4 +39,4 @@ const budgetsSchema = new Schema({
 
 const budget = mongo.model("budgets", budgetsSchema, "Budgets");
 
-module.exports = budget;
+module.exports = { budget, subBudgetSchema };
