@@ -10,6 +10,7 @@ const {
   editSubBudget,
   deleteBudget,
   deleteSubBudget,
+  handleGetSubBudget,
 } = require("../controllers/BudgetController.controller");
 const budgetsRoute = endpoint.budgets;
 
@@ -18,10 +19,19 @@ router.get(budgetsRoute.allBudgets, authMiddleWare, (req, res) => {
   handleGetBudget(req, res);
 });
 
-// create
-router.post(budgetsRoute.allBudgets, authMiddleWare, (req, res) => {
-  createNewBudget(req, res);
+router.get(budgetsRoute.specificBudgets, authMiddleWare, (req, res) => {
+  handleGetSubBudget(req, res);
 });
+
+// create
+router.post(
+  budgetsRoute.allBudgets.replace("/:id", ""),
+  authMiddleWare,
+  (req, res) => {
+    createNewBudget(req, res);
+  }
+);
+
 router.post(budgetsRoute.subBudgetCreate, authMiddleWare, (req, res) => {
   createNewSubBudget(req, res);
 });

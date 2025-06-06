@@ -27,6 +27,10 @@ const transactionSchema = new Schema({
     type: Date,
     required: true,
   },
+  recurring: {
+    type: Boolean,
+    require: true,
+  },
   createdAt: Date,
   updatedAt: Date,
 });

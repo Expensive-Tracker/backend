@@ -7,21 +7,21 @@ const moment = require("moment");
 const handleGetUserBudget = async (userId) => {
   const userBudget = await budget.findOne({ userId });
   if (!userBudget) return "No budget found for user.";
+
   const currentMonth = moment().format("MMMM YYYY");
   const previousMonth = moment().subtract(1, "month").format("MMMM YYYY");
-  const startOfMonth = moment().startOf("month").toDate();
-  const endOfMonth = moment().endOf("month").toDate();
 
   const transactions = await transaction.find({
     userId,
-    type: "expense",
-    date: { $gte: startOfMonth, $lte: endOfMonth },
+    type: "Expense",
   });
+
   const spentByCategory = {};
   transactions.forEach((tx) => {
     spentByCategory[tx.category] =
       (spentByCategory[tx.category] || 0) + tx.amount;
   });
+
   let totalSpent = 0;
   if (userBudget.month === currentMonth) {
     const updatedCategories = (userBudget.category || []).map((cat) => {
@@ -43,6 +43,7 @@ const handleGetUserBudget = async (userId) => {
         spentPercentage,
       };
     });
+
     userBudget.category = updatedCategories;
     return {
       ...userBudget.toObject(),
@@ -50,12 +51,14 @@ const handleGetUserBudget = async (userId) => {
       totalRemain: userBudget.budgetAmount - totalSpent,
     };
   }
+
   await budgetHistory.create({
     userId: userBudget.userId,
     budgetAmount: userBudget.budgetAmount,
     category: userBudget.category || [],
     month: previousMonth,
   });
+
   userBudget.category = (userBudget.category || []).map((cat) => ({
     categoryName: cat.categoryName,
     subBudgetAmount: 0,
@@ -64,11 +67,30 @@ const handleGetUserBudget = async (userId) => {
       totalRemain: 0,
     },
   }));
+
   userBudget.month = currentMonth;
   userBudget.updatedAt = getCreatedAt();
   await userBudget.save();
 
   return userBudget;
+};
+
+const handleGetSpecificSubBudget = async (budgetId, subBudgetId) => {
+  try {
+    const budgetDoc = await budget.findOne(
+      { _id: budgetId, "category._id": subBudgetId },
+      { "category.$": 1 }
+    );
+
+    if (!budgetDoc || !budgetDoc.category || budgetDoc.category.length === 0) {
+      return { message: "Sub-budget not found." };
+    }
+
+    return budgetDoc.category[0];
+  } catch (error) {
+    console.error("Error fetching sub-budget:", error.message);
+    return { error: error.message };
+  }
 };
 
 const handleAddNewBudget = async (data) => {
@@ -87,16 +109,36 @@ const handleAddNewSubBudget = async (id, data) => {
   const updatedAt = getCreatedAt();
   const existingBudget = await budget.findById(id);
   if (!existingBudget) return "Budget not found.";
+
   const categoryExists = existingBudget.category.some(
     (cat) => cat.categoryName.toLowerCase() === data.categoryName.toLowerCase()
   );
   if (categoryExists) return "Category already exists.";
+  const userId = existingBudget.userId;
+  const totalSpentAgg = await transaction.aggregate([
+    {
+      $match: {
+        userId: userId,
+        category: data.categoryName,
+        type: "expense",
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalSpent: { $sum: "$amount" },
+      },
+    },
+  ]);
+
+  const totalSpent = totalSpentAgg[0]?.totalSpent || 0;
+  const totalRemain = data.subBudgetAmount - totalSpent;
   const newSubBudget = {
     categoryName: data.categoryName,
     subBudgetAmount: data.subBudgetAmount,
     budgetTransaction: {
-      totalSpent: data.totalSpent || 0,
-      totalRemain: data.subBudgetAmount - (data.totalSpent || 0),
+      totalSpent,
+      totalRemain,
     },
     createdAt: updatedAt,
     updatedAt,
@@ -130,20 +172,31 @@ const handleEditBudget = async (id, data) => {
     return "string";
   }
 
-  return updatedBudget;
+  return updatedBudget._doc;
 };
 
 const handleEditSubBudget = async (budgetId, subBudgetId, data) => {
   const updatedAt = getCreatedAt();
+
+  const budgetDoc = await budget.findOne(
+    { _id: budgetId, "category._id": subBudgetId },
+    { "category.$": 1 }
+  );
+
+  if (!budgetDoc || !budgetDoc.category?.[0]) {
+    return "Sub-budget not found";
+  }
+
+  const currentSubBudget = budgetDoc.category[0];
+  const totalSpent = currentSubBudget.budgetTransaction.totalSpent || 0;
+
   const result = await budget.updateOne(
     { _id: budgetId, "category._id": subBudgetId },
     {
       $set: {
-        "category.$.categoryName": data.categoryName,
         "category.$.subBudgetAmount": data.subBudgetAmount,
-        "category.$.budgetTransaction.totalSpent": data.totalSpent,
         "category.$.budgetTransaction.totalRemain":
-          data.subBudgetAmount - data.totalSpent,
+          data.subBudgetAmount - totalSpent,
         "category.$.updatedAt": updatedAt,
         updatedAt,
       },
@@ -151,7 +204,7 @@ const handleEditSubBudget = async (budgetId, subBudgetId, data) => {
   );
 
   if (result.modifiedCount === 0) {
-    return "string";
+    return "No changes made.";
   }
 
   const updatedBudget = await budget.findById(budgetId, {
@@ -196,4 +249,5 @@ module.exports = {
   handleDeleteSubBudget,
   handleEditBudget,
   handleEditSubBudget,
+  handleGetSpecificSubBudget,
 };

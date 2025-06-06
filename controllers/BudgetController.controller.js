@@ -6,10 +6,11 @@ const {
   handleEditSubBudget,
   handleDeleteBudget,
   handleDeleteSubBudget,
+  handleGetSpecificSubBudget,
 } = require("../services/budgetService");
 
 const handleGetBudget = async (req, res) => {
-  const { userId } = req.body;
+  const userId = req.params["id"];
   try {
     const response = await handleGetUserBudget(userId);
     if (typeof response === "string") {
@@ -25,6 +26,26 @@ const handleGetBudget = async (req, res) => {
   } catch (err) {
     console.error(err?.message);
     return res.status(500).json({ message: err?.message });
+  }
+};
+
+const handleGetSubBudget = async (req, res) => {
+  const subBudgetId = req.params["subId"];
+  const budgetId = req.params["id"];
+
+  try {
+    const result = await handleGetSpecificSubBudget(budgetId, subBudgetId);
+
+    if (result?.message === "Sub-budget not found.") {
+      return res
+        .status(404)
+        .json({ success: false, message: "Sub-budget not found." });
+    }
+
+    return res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    console.error("Error in controller:", err.message);
+    return res.status(500).json({ success: false, error: err.message });
   }
 };
 
@@ -64,8 +85,9 @@ const createNewSubBudget = async (req, res) => {
 
 const editBudget = async (req, res) => {
   const userDetail = { ...req.body };
+  const budgetId = req.params["id"];
   try {
-    const result = await handleEditBudget(userDetail.id, userDetail);
+    const result = await handleEditBudget(budgetId, userDetail);
     if (typeof result === "string")
       return res.status(404).json({
         message: "something went wrong",
@@ -146,4 +168,5 @@ module.exports = {
   deleteSubBudget,
   editBudget,
   editSubBudget,
+  handleGetSubBudget,
 };
