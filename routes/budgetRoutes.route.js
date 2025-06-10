@@ -1,55 +1,39 @@
 const endpoint = require("../config/endPoint");
-const ex = require("express");
-const router = ex.Router();
+const express = require("express");
+const router = express.Router();
 const authMiddleWare = require("../middleware/authMiddleWare");
+
 const {
-  handleGetBudget,
-  createNewBudget,
-  createNewSubBudget,
+  getBudget,
+  getSubBudget,
+  createBudget,
+  createSubBudget,
   editBudget,
   editSubBudget,
   deleteBudget,
   deleteSubBudget,
-  handleGetSubBudget,
 } = require("../controllers/BudgetController.controller");
+
 const budgetsRoute = endpoint.budgets;
 
-// fetch
-router.get(budgetsRoute.allBudgets, authMiddleWare, (req, res) => {
-  handleGetBudget(req, res);
-});
+// Fetch
+router.get(budgetsRoute.allBudgets, authMiddleWare, getBudget);
+router.get(budgetsRoute.specificBudgets, authMiddleWare, getSubBudget);
 
-router.get(budgetsRoute.specificBudgets, authMiddleWare, (req, res) => {
-  handleGetSubBudget(req, res);
-});
-
-// create
+// Create
 router.post(
   budgetsRoute.allBudgets.replace("/:id", ""),
   authMiddleWare,
-  (req, res) => {
-    createNewBudget(req, res);
-  }
+  createBudget
 );
+router.post(budgetsRoute.subBudgetCreate, authMiddleWare, createSubBudget);
 
-router.post(budgetsRoute.subBudgetCreate, authMiddleWare, (req, res) => {
-  createNewSubBudget(req, res);
-});
+// Edit
+router.put(budgetsRoute.updBudgets, authMiddleWare, editBudget);
+router.put(budgetsRoute.updSubBudgets, authMiddleWare, editSubBudget);
 
-// edit
-router.put(budgetsRoute.updBudgets, authMiddleWare, (req, res) => {
-  editBudget(req, res);
-});
-router.put(budgetsRoute.updSubBudgets, authMiddleWare, (req, res) => {
-  editSubBudget(req, res);
-});
-
-// delete
-router.delete(budgetsRoute.DeleteBudgets, authMiddleWare, (req, res) => {
-  deleteBudget(req, res);
-});
-router.delete(budgetsRoute.subDeleteBudgets, authMiddleWare, (req, res) => {
-  deleteSubBudget(req, res);
-});
+// Delete
+router.delete(budgetsRoute.DeleteBudgets, authMiddleWare, deleteBudget);
+router.delete(budgetsRoute.subDeleteBudgets, authMiddleWare, deleteSubBudget);
 
 module.exports = router;

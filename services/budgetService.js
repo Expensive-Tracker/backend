@@ -3,10 +3,97 @@ const budgetHistory = require("../models/budgetHistory");
 const { getCreatedAt } = require("./authServices");
 const transaction = require("../models/transaction");
 const moment = require("moment");
+const mongoose = require("mongoose");
+const nodemailer = require("nodemailer");
+const { user } = require("../models/user");
+
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
+  auth: {
+    user: process.env.MAILID,
+    pass: process.env.PASSWORD,
+  },
+});
+
+const sendBudgetExceedNotification = async (
+  userEmail,
+  categoryName,
+  spent,
+  budgetAmount,
+  exceededAmount
+) => {
+  try {
+    const mailOptions = {
+      from: '"Expense Tracker" <kerrahul10@gmail.com>',
+      to: userEmail,
+      subject: "Budget Limit Exceeded - Expense Tracker Alert",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #d32f2f;">⚠️ Budget Limit Exceeded</h2>
+          <p>Hello,</p>
+          <p>Your spending in the <strong>${categoryName}</strong> category has exceeded the allocated budget.</p>
+          
+          <div style="background-color: #ffebee; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <h3 style="color: #d32f2f; margin-top: 0;">Budget Details:</h3>
+            <ul style="list-style: none; padding: 0;">
+              <li><strong>Category:</strong> ${categoryName}</li>
+              <li><strong>Budget Limit:</strong> $${budgetAmount.toFixed(
+                2
+              )}</li>
+              <li><strong>Amount Spent:</strong> $${spent.toFixed(2)}</li>
+              <li><strong>Exceeded by:</strong> $${exceededAmount.toFixed(
+                2
+              )}</li>
+            </ul>
+          </div>
+          
+          <p>Please review your expenses and consider adjusting your spending to stay within your budget goals.</p>
+          
+          <p style="margin-top: 30px;">
+            Best regards,<br>
+            <strong>Expense Tracker Team</strong>
+          </p>
+        </div>
+      `,
+      text: `
+        Budget Limit Exceeded Alert
+        
+        Your spending in the ${categoryName} category has exceeded the allocated budget.
+        
+        Budget Details:
+        - Category: ${categoryName}
+        - Budget Limit: ₹${budgetAmount.toFixed(2)}
+        - Amount Spent: ₹${spent.toFixed(2)}
+        - Exceeded by: ₹${exceededAmount.toFixed(2)}
+        
+        Please review your expenses and consider adjusting your spending to stay within your budget goals.
+        
+        Best regards,
+        Expense Tracker Team
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(
+      `Budget exceed notification sent to ${userEmail} for category: ${categoryName}`
+    );
+  } catch (error) {
+    console.error("Error sending budget exceed notification:", error.message);
+  }
+};
 
 const handleGetUserBudget = async (userId) => {
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return "Invalid user ID.";
+  }
+
   const userBudget = await budget.findOne({ userId });
   if (!userBudget) return "No budget found for user.";
+
+  const userData = await user.findById(userId);
+  const userEmail = userData?.email;
 
   const currentMonth = moment().format("MMMM YYYY");
   const previousMonth = moment().subtract(1, "month").format("MMMM YYYY");
@@ -23,16 +110,42 @@ const handleGetUserBudget = async (userId) => {
   });
 
   let totalSpent = 0;
+
   if (userBudget.month === currentMonth) {
     const updatedCategories = (userBudget.category || []).map((cat) => {
       const spent = spentByCategory[cat.categoryName] || 0;
       const remain = cat.subBudgetAmount - spent;
-      const spentPercentage =
-        cat.subBudgetAmount > 0
-          ? parseFloat(((spent / cat.subBudgetAmount) * 100).toFixed(2))
-          : 0;
 
       totalSpent += spent;
+
+      if (spent > cat.subBudgetAmount && cat.subBudgetAmount > 0 && userEmail) {
+        const exceededAmount = spent - cat.subBudgetAmount;
+
+        // Check if we already sent notification for this category this month
+        // to avoid spamming user with multiple emails
+        const lastNotificationSent = cat.lastNotificationSent;
+        const shouldSendNotification =
+          !lastNotificationSent ||
+          !moment(lastNotificationSent).isSame(moment(), "month");
+
+        if (shouldSendNotification) {
+          sendBudgetExceedNotification(
+            userEmail,
+            cat.categoryName,
+            spent,
+            cat.subBudgetAmount,
+            exceededAmount
+          ).catch((err) => {
+            console.error(
+              "Failed to send budget exceed notification:",
+              err.message
+            );
+          });
+
+          // Mark that we sent notification for this category this month
+          cat.lastNotificationSent = new Date();
+        }
+      }
 
       return {
         ...cat.toObject(),
@@ -40,11 +153,21 @@ const handleGetUserBudget = async (userId) => {
           totalSpent: spent,
           totalRemain: remain,
         },
-        spentPercentage,
+        updatedAt: getCreatedAt(),
+        // Include lastNotificationSent if it was updated
+        ...(cat.lastNotificationSent && {
+          lastNotificationSent: cat.lastNotificationSent,
+        }),
       };
     });
 
-    userBudget.category = updatedCategories;
+    userBudget.set({
+      category: updatedCategories,
+      updatedAt: getCreatedAt(),
+    });
+
+    await userBudget.save();
+
     return {
       ...userBudget.toObject(),
       totalSpent,
@@ -52,6 +175,7 @@ const handleGetUserBudget = async (userId) => {
     };
   }
 
+  // Month has changed → backup and reset
   await budgetHistory.create({
     userId: userBudget.userId,
     budgetAmount: userBudget.budgetAmount,
@@ -59,20 +183,27 @@ const handleGetUserBudget = async (userId) => {
     month: previousMonth,
   });
 
-  userBudget.category = (userBudget.category || []).map((cat) => ({
+  const resetCategories = (userBudget.category || []).map((cat) => ({
     categoryName: cat.categoryName,
     subBudgetAmount: 0,
     budgetTransaction: {
       totalSpent: 0,
       totalRemain: 0,
     },
+    updatedAt: getCreatedAt(),
+    // Reset notification tracking for new month
+    lastNotificationSent: null,
   }));
 
-  userBudget.month = currentMonth;
-  userBudget.updatedAt = getCreatedAt();
+  userBudget.set({
+    category: resetCategories,
+    month: currentMonth,
+    updatedAt: getCreatedAt(),
+  });
+
   await userBudget.save();
 
-  return userBudget;
+  return userBudget.toObject();
 };
 
 const handleGetSpecificSubBudget = async (budgetId, subBudgetId) => {
@@ -114,6 +245,19 @@ const handleAddNewSubBudget = async (id, data) => {
     (cat) => cat.categoryName.toLowerCase() === data.categoryName.toLowerCase()
   );
   if (categoryExists) return "Category already exists.";
+
+  const totalExistingSubBudget = existingBudget.category.reduce(
+    (sum, cat) => sum + cat.subBudgetAmount,
+    0
+  );
+
+  if (
+    totalExistingSubBudget + data.subBudgetAmount >
+    existingBudget.budgetAmount
+  ) {
+    return "Sub-budget exceeds total budget amount.";
+  }
+
   const userId = existingBudget.userId;
   const totalSpentAgg = await transaction.aggregate([
     {
@@ -157,6 +301,7 @@ const handleAddNewSubBudget = async (id, data) => {
 
 const handleEditBudget = async (id, data) => {
   const updatedAt = getCreatedAt();
+
   const updatedBudget = await budget.findByIdAndUpdate(
     id,
     {
@@ -177,6 +322,21 @@ const handleEditBudget = async (id, data) => {
 
 const handleEditSubBudget = async (budgetId, subBudgetId, data) => {
   const updatedAt = getCreatedAt();
+
+  const fullBudget = await budget.findById(budgetId);
+  if (!fullBudget) return "Budget not found";
+
+  const existingCategories = fullBudget.category || [];
+  const newTotal = existingCategories.reduce((sum, cat) => {
+    if (cat._id.toString() === subBudgetId) {
+      return sum + data.subBudgetAmount;
+    }
+    return sum + cat.subBudgetAmount;
+  }, 0);
+
+  if (newTotal > fullBudget.budgetAmount) {
+    return "Updated sub-budget exceeds total budget amount.";
+  }
 
   const budgetDoc = await budget.findOne(
     { _id: budgetId, "category._id": subBudgetId },

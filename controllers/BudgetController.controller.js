@@ -9,164 +9,179 @@ const {
   handleGetSpecificSubBudget,
 } = require("../services/budgetService");
 
-const handleGetBudget = async (req, res) => {
-  const userId = req.params["id"];
+// Get budget for a user
+const getBudget = async (req, res) => {
+  const userId = req.params.id;
+
   try {
-    const response = await handleGetUserBudget(userId);
-    if (typeof response === "string") {
-      return res.status(404).json({
-        message: "There is no Budgets for this user",
-      });
-    } else {
-      return res.status(200).json({
-        message: "Fetch budgets",
-        budget: { ...response },
-      });
+    const result = await handleGetUserBudget(userId);
+
+    if (typeof result === "string") {
+      return res
+        .status(404)
+        .json({ message: "No budget found for this user." });
     }
+
+    return res.status(200).json({
+      message: "Budget fetched successfully.",
+      budget: result,
+    });
   } catch (err) {
-    console.error(err?.message);
-    return res.status(500).json({ message: err?.message });
+    console.error("Error fetching budget:", err.message);
+    return res.status(500).json({ message: "Server error." });
   }
 };
 
-const handleGetSubBudget = async (req, res) => {
-  const subBudgetId = req.params["subId"];
-  const budgetId = req.params["id"];
+// Get a specific sub-budget
+const getSubBudget = async (req, res) => {
+  const { id: budgetId, subId: subBudgetId } = req.params;
 
   try {
     const result = await handleGetSpecificSubBudget(budgetId, subBudgetId);
 
     if (result?.message === "Sub-budget not found.") {
-      return res
-        .status(404)
-        .json({ success: false, message: "Sub-budget not found." });
+      return res.status(404).json({ message: result.message });
     }
 
-    return res.status(200).json({ success: true, data: result });
+    return res.status(200).json({
+      message: "Sub-budget fetched successfully.",
+      category: result,
+    });
   } catch (err) {
-    console.error("Error in controller:", err.message);
-    return res.status(500).json({ success: false, error: err.message });
+    console.error("Error fetching sub-budget:", err.message);
+    return res.status(500).json({ message: "Server error." });
   }
 };
 
-const createNewBudget = async (req, res) => {
+// Create new budget for user
+const createBudget = async (req, res) => {
   const data = req.body;
+
   try {
     const result = await handleAddNewBudget(data);
-    if (typeof result === "string")
-      return res.status(404).json({
-        message: "Budget already exits",
-      });
-    return res.status(200).json({
-      message: "Budget fetched",
-      budget: { ...result },
-    });
-  } catch (err) {
-    console.error(err?.message);
-    return res.status(500).json({
-      message: err?.message,
-    });
-  }
-};
-const createNewSubBudget = async (req, res) => {
-  const userDetail = { ...req.body };
-  try {
-    const result = await handleAddNewSubBudget(userDetail.id, userDetail);
-    if (typeof result === "string")
-      return res.status(404).json({ message: "something went wrong" });
-    return res
-      .status(200)
-      .json({ message: "Category created", category: { ...result } });
-  } catch (err) {
-    console.error(err?.message);
-    return res.status(500).json({ message: err?.message });
-  }
-};
 
-const editBudget = async (req, res) => {
-  const userDetail = { ...req.body };
-  const budgetId = req.params["id"];
-  try {
-    const result = await handleEditBudget(budgetId, userDetail);
-    if (typeof result === "string")
-      return res.status(404).json({
-        message: "something went wrong",
-      });
-    return res.status(200).json({
-      message: "Budget updated",
-      budget: { ...result },
-    });
-  } catch (err) {
-    console.error(err?.message);
-    return res.status(500).json({ message: err?.message });
-  }
-};
-const editSubBudget = async (req, res) => {
-  try {
-    const { budgetId, subBudgetId } = req.params;
-    const data = req.body;
-
-    const updatedCategory = await handleEditSubBudget(
-      budgetId,
-      subBudgetId,
-      data
-    );
-    if (updatedCategory === "string") {
-      return res
-        .status(404)
-        .json({ message: "Sub-budget not found or not updated." });
+    if (typeof result === "string") {
+      return res.status(409).json({ message: "Budget already exists." });
     }
-    return res.status(200).json({ category: updatedCategory });
-  } catch (error) {
-    console.error("Error editing sub-budget:", error);
-    return res.status(500).json({ message: "Internal server error." });
+
+    return res.status(201).json({
+      message: "Budget created successfully.",
+      budget: result,
+    });
+  } catch (err) {
+    console.error("Error creating budget:", err.message);
+    return res.status(500).json({ message: "Server error." });
+  }
+};
+
+// Create a new sub-budget
+const createSubBudget = async (req, res) => {
+  const data = req.body;
+
+  try {
+    const result = await handleAddNewSubBudget(data.id, data);
+
+    if (typeof result === "string") {
+      return res.status(400).json({ message: result });
+    }
+
+    return res.status(201).json({
+      message: "Sub-budget category created.",
+      category: result,
+    });
+  } catch (err) {
+    console.error("Error creating sub-budget:", err.message);
+    return res.status(500).json({ message: "Server error." });
+  }
+};
+
+// Edit a budget (e.g. update total amount)
+const editBudget = async (req, res) => {
+  const budgetId = req.params.id;
+  const data = req.body;
+
+  try {
+    const result = await handleEditBudget(budgetId, data);
+
+    if (typeof result === "string") {
+      return res.status(404).json({ message: "Budget not found." });
+    }
+
+    return res.status(200).json({
+      message: "Budget updated successfully.",
+      budget: result,
+    });
+  } catch (err) {
+    console.error("Error updating budget:", err.message);
+    return res.status(500).json({ message: "Server error." });
+  }
+};
+
+const editSubBudget = async (req, res) => {
+  const { id, subId } = req.params;
+  const data = req.body;
+
+  try {
+    const result = await handleEditSubBudget(id, subId, data);
+
+    if (typeof result === "string") {
+      return res.status(400).json({ message: result });
+    }
+
+    return res.status(200).json({
+      message: "Sub-budget updated successfully.",
+      category: result,
+    });
+  } catch (err) {
+    console.error("Error updating sub-budget:", err.message);
+    return res.status(500).json({ message: "Server error." });
   }
 };
 
 const deleteBudget = async (req, res) => {
-  try {
-    const { budgetId } = req.params;
+  const { id } = req.params;
 
-    const result = await handleDeleteBudget(budgetId);
+  try {
+    const result = await handleDeleteBudget(id);
 
     if (result === "string") {
       return res.status(404).json({ message: "Budget not found." });
     }
 
     return res.status(200).json({ message: "Budget deleted successfully." });
-  } catch (error) {
-    console.error("Error deleting budget:", error);
-    return res.status(500).json({ message: "Internal server error." });
+  } catch (err) {
+    console.error("Error deleting budget:", err.message);
+    return res.status(500).json({ message: "Server error." });
   }
 };
 
 const deleteSubBudget = async (req, res) => {
+  const { id, subId } = req.params;
+
   try {
-    const { budgetId, subBudgetId } = req.params;
+    const result = await handleDeleteSubBudget(id, subId);
 
-    const updatedBudget = await handleDeleteSubBudget(budgetId, subBudgetId);
-
-    if (updatedBudget === "string") {
+    if (result === "string") {
       return res.status(404).json({ message: "Sub-budget not found." });
     }
 
     return res.status(200).json({
       message: "Sub-budget deleted successfully.",
-      category: updatedBudget.category,
+      category: result.category,
     });
-  } catch (error) {
-    console.error("Error deleting sub-budget:", error);
-    return res.status(500).json({ message: "Internal server error." });
+  } catch (err) {
+    console.error("Error deleting sub-budget:", err.message);
+    return res.status(500).json({ message: "Server error." });
   }
 };
 
 module.exports = {
-  handleGetBudget,
-  createNewBudget,
-  createNewSubBudget,
-  deleteBudget,
-  deleteSubBudget,
+  getBudget,
+  getSubBudget,
+  createBudget,
+  createSubBudget,
   editBudget,
   editSubBudget,
-  handleGetSubBudget,
+  deleteBudget,
+  deleteSubBudget,
 };

@@ -88,7 +88,6 @@ const updateTransactionService = async (req) => {
 const createNewTransactionService = async (req) => {
   const data = req.body;
   const id = data._id;
-  console.log(data);
 
   delete data["_id"];
   if (!data["description"]) data["description"] = "-";
