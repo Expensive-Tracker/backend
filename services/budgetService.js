@@ -1,11 +1,11 @@
 const { budget } = require("../models/budget");
 const budgetHistory = require("../models/budgetHistory");
-const { getCreatedAt } = require("./authServices");
 const transaction = require("../models/transaction");
 const moment = require("moment");
 const mongoose = require("mongoose");
 const nodemailer = require("nodemailer");
 const { user } = require("../models/user");
+const { getCreatedAt } = require("../utils/helper");
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
@@ -31,7 +31,7 @@ const sendBudgetExceedNotification = async (
       subject: "Budget Limit Exceeded - Expense Tracker Alert",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #d32f2f;">⚠️ Budget Limit Exceeded</h2>
+          <h2 style="color: #d32f2f;">Budget Limit Exceeded</h2>
           <p>Hello,</p>
           <p>Your spending in the <strong>${categoryName}</strong> category has exceeded the allocated budget.</p>
           
@@ -76,9 +76,6 @@ const sendBudgetExceedNotification = async (
     };
 
     await transporter.sendMail(mailOptions);
-    console.log(
-      `Budget exceed notification sent to ${userEmail} for category: ${categoryName}`
-    );
   } catch (error) {
     console.error("Error sending budget exceed notification:", error.message);
   }
@@ -120,9 +117,6 @@ const handleGetUserBudget = async (userId) => {
 
       if (spent > cat.subBudgetAmount && cat.subBudgetAmount > 0 && userEmail) {
         const exceededAmount = spent - cat.subBudgetAmount;
-
-        // Check if we already sent notification for this category this month
-        // to avoid spamming user with multiple emails
         const lastNotificationSent = cat.lastNotificationSent;
         const shouldSendNotification =
           !lastNotificationSent ||
@@ -142,7 +136,6 @@ const handleGetUserBudget = async (userId) => {
             );
           });
 
-          // Mark that we sent notification for this category this month
           cat.lastNotificationSent = new Date();
         }
       }
@@ -154,7 +147,6 @@ const handleGetUserBudget = async (userId) => {
           totalRemain: remain,
         },
         updatedAt: getCreatedAt(),
-        // Include lastNotificationSent if it was updated
         ...(cat.lastNotificationSent && {
           lastNotificationSent: cat.lastNotificationSent,
         }),
@@ -175,7 +167,6 @@ const handleGetUserBudget = async (userId) => {
     };
   }
 
-  // Month has changed → backup and reset
   await budgetHistory.create({
     userId: userBudget.userId,
     budgetAmount: userBudget.budgetAmount,
@@ -191,7 +182,6 @@ const handleGetUserBudget = async (userId) => {
       totalRemain: 0,
     },
     updatedAt: getCreatedAt(),
-    // Reset notification tracking for new month
     lastNotificationSent: null,
   }));
 

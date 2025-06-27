@@ -68,7 +68,7 @@ const handleUpdateTransaction = async (req, res) => {
       });
     }
   } catch (err) {
-    console.error;
+    console.error(err?.message);
   }
 };
 
@@ -85,7 +85,7 @@ const handleDeleteTransaction = async (req, res) => {
       });
     }
   } catch (err) {
-    console.log(err.message);
+    console.error(err.message);
     return res.status(500).json({
       message: err?.message,
     });

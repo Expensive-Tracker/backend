@@ -1,5 +1,5 @@
 const transaction = require("../models/transaction");
-const { getCreatedAt } = require("./authServices");
+const { getCreatedAt } = require("../utils/helper");
 
 const getTransactionService = async (req) => {
   const {
@@ -79,6 +79,7 @@ const updateTransactionService = async (req) => {
     ...newTransactionData,
     updatedAt,
   });
+
   if (updateTransaction) {
     return 1;
   }
@@ -87,13 +88,11 @@ const updateTransactionService = async (req) => {
 
 const createNewTransactionService = async (req) => {
   const data = req.body;
-  const id = data._id;
-
-  delete data["_id"];
   if (!data["description"]) data["description"] = "-";
   const dateForCreation = getCreatedAt();
+
   const dataToSave = {
-    userId: id,
+    userId: req.user._id,
     ...data,
     createdAt: dateForCreation,
     updatedAt: dateForCreation,

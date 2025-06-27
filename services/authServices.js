@@ -1,10 +1,13 @@
 const { user } = require("../models/user");
 const cloudinary = require("cloudinary").v2;
-const JWT_SECRET = process.env.JWT_SECRET;
-const jwt = require("jsonwebtoken");
-const fs = require("fs");
 const nodemailer = require("nodemailer");
 const bcrypt = require("bcryptjs");
+const {
+  generateToken,
+  getCreatedAt,
+  handleMakeUrl,
+  generateOTP,
+} = require("../utils/helper");
 const saltLevel = 10;
 
 const transporter = nodemailer.createTransport({
@@ -103,23 +106,34 @@ const loginUserService = async (userData) => {
 };
 
 const updateUserService = async (userData) => {
-  const userExits = await user.findOne({ id: userData?.id });
+  const userExits = await user.findOne({ _id: userData?._id });
   const notUniqueUserName = await user.findOne({
     username: userData?.username,
+    _id: { $ne: userData?._id },
   });
+
   if (userExits) {
     if (notUniqueUserName) {
       return 1;
     }
+
+    let profilePicUrl = userExits?.profilePic;
+    if (userData?.profilePic && typeof userData.profilePic === "object") {
+      profilePicUrl = await handleMakeUrl(
+        userData?.profilePic,
+        userExits?.profilePic
+      );
+    }
+
     const updatedAt = getCreatedAt();
+
     const userToSave = {
       ...userData,
       updatedAt,
       password: userExits?.password,
-      profilePic: userData?.profilePic
-        ? userData?.profilePic
-        : userExits?.profilePic,
+      profilePic: profilePicUrl,
     };
+
     const updatedUser = await user.findByIdAndUpdate(
       userData._id,
       {
@@ -158,7 +172,7 @@ const changePasswordService = async (userData) => {
 };
 
 const deleteUserService = async (userData) => {
-  const userExits = await user.findOne({ email: userData?.email });
+  const userExits = await user.findOne({ _id: userData?._id });
   if (userExits) {
     const deletedUser = await user.findByIdAndDelete(userData?._id);
     return { success: deletedUser ? "User deleted" : "Unable to delete user" };
@@ -167,7 +181,7 @@ const deleteUserService = async (userData) => {
   }
 };
 
-const handleEmailValidateService = async (userData) => {
+const handleEmailValidateService = async (userData, req) => {
   const userExits = await user.findOne({ email: userData?.email });
   try {
     if (userExits) {
@@ -184,7 +198,11 @@ const handleEmailValidateService = async (userData) => {
         otp,
         otpExpire,
       });
-      const otpToken = generateToken(otp);
+      const tokenPayload = {
+        _id: req.user._id,
+        email: req.user.email,
+      };
+      const otpToken = generateToken(tokenPayload);
       return { otpToken };
     } else {
       return false;
@@ -201,68 +219,12 @@ const otpVerificationService = async (userData) => {
     if (new Date() > userExits.otpExpire) return "string";
     if (userData.otp !== userExits.otp) return undefined;
     await user.findByIdAndUpdate(userExits._id, { otp: "", otpExpire: null });
-    const correctOtpToken = generateToken(userData.otp);
+    const correctOtpToken = generateToken({ _i });
     return { message: "Otp is correct", correctOtpToken };
   } else {
     return false;
   }
 };
-
-// common function
-function generateOTP() {
-  return Math.floor(1000 + Math.random() * 9000).toString();
-}
-
-function generateToken(data) {
-  if (!data || typeof data !== "object" || Array.isArray(data)) {
-    throw new Error(
-      "Invalid data provided to generateToken. Expected a non-array object."
-    );
-  }
-  if (!data._id || !data.email) {
-    throw new Error(
-      "Missing required fields in token payload: '_id' and 'email' are required."
-    );
-  }
-  if (!JWT_SECRET) {
-    throw new Error("JWT_SECRET is not defined in environment variables.");
-  }
-  const payload = {
-    _id: data._id,
-    email: data.email,
-  };
-  try {
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "1h" });
-    return token;
-  } catch (err) {
-    throw new Error("Failed to generate JWT token: " + err.message);
-  }
-}
-
-function getCreatedAt() {
-  const date = new Date();
-  return date;
-}
-
-async function handleMakeUrl(file) {
-  if (!file) return "";
-  try {
-    const result = await cloudinary.uploader.upload(file.path, {
-      folder: "profile_pics",
-    });
-
-    fs.unlink(file.path, (err) => {
-      if (err) {
-        console.error("Error deleting local image:", err);
-      } else {
-        console.log("Local image deleted:", file.path);
-      }
-    });
-    return result.secure_url;
-  } catch (err) {
-    throw new Error("Error uploading image to Cloudinary: " + err.message);
-  }
-}
 
 module.exports = {
   registerUserServices,
@@ -272,5 +234,4 @@ module.exports = {
   deleteUserService,
   handleEmailValidateService,
   otpVerificationService,
-  getCreatedAt,
 };

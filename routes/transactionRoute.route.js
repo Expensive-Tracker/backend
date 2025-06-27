@@ -9,22 +9,37 @@ const {
   handleGetTransaction,
   handleUpdateTransaction,
 } = require("../controllers/transactionController.controller");
+const validate = require("../middleware/validation");
+const {
+  transactionSchema,
+  updateTransactionSchema,
+} = require("../utils/validation/transaction.validation");
 const transactionRoute = endpoint.transaction;
 
 router.post(transactionRoute.getUserTransaction, authMiddleWare, (req, res) => {
   handleGetTransaction(req, res);
 });
-router.post(transactionRoute.newTransaction, authMiddleWare, (req, res) => {
-  handleCreateNewTransaction(req, res);
-});
+router.post(
+  transactionRoute.newTransaction,
+  authMiddleWare,
+  validate(transactionSchema),
+  (req, res) => {
+    handleCreateNewTransaction(req, res);
+  }
+);
 
 router.get(transactionRoute.specificTransition, authMiddleWare, (req, res) => {
   handleGetSingleTransaction(req, res);
 });
 
-router.put(transactionRoute.updTransition, authMiddleWare, (req, res) => {
-  handleUpdateTransaction(req, res);
-});
+router.put(
+  transactionRoute.updTransition,
+  authMiddleWare,
+  validate(updateTransactionSchema),
+  (req, res) => {
+    handleUpdateTransaction(req, res);
+  }
+);
 
 router.delete(transactionRoute.deleteTransition, authMiddleWare, (req, res) => {
   handleDeleteTransaction(req, res);

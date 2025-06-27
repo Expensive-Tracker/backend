@@ -59,6 +59,11 @@ const loginUser = async (req, res) => {
 
 const updateUser = async (req, res) => {
   const userData = req.body;
+  const id = req.user._id;
+  userData._id = id;
+  if (req.file) {
+    userData.profilePic = req.file;
+  }
   try {
     const response = await updateUserService(userData);
     res.setHeader("Content-Type", "application/json");
@@ -77,7 +82,10 @@ const updateUser = async (req, res) => {
       return res.status(404).json({ message: "User don't exits" });
     }
   } catch (err) {
-    throw new Error(err?.message);
+    return res.status(500).json({
+      message: "Internal server error",
+      error: err.message,
+    });
   }
 };
 
@@ -118,7 +126,7 @@ const emailValidation = async (req, res) => {
   const userData = req.body;
   res.setHeader("Content-Type", "application/json");
   try {
-    const response = await handleEmailValidateService(userData);
+    const response = await handleEmailValidateService(userData, req);
     if (typeof response === "boolean") {
       return res.status(404).json({ message: "User not Exits" });
     }
