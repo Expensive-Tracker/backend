@@ -10,7 +10,13 @@ const getSummaryController = async (req, res) => {
 
     const data = await getSummary(userId);
 
-    res.status(200).json({
+    if (typeof data === "number") {
+      return res.status(404).json({
+        message: "Something went wrong",
+      });
+    }
+
+    return res.status(200).json({
       success: true,
       data: data,
     });
@@ -32,7 +38,7 @@ const getMonthlyTrendsController = async (req, res) => {
       return res.status(404).json({ message: "No monthly trend data found." });
     }
 
-    res.json(data);
+    return res.json(data);
   } catch (err) {
     res
       .status(500)
@@ -50,7 +56,7 @@ const getCategoryBreakdownController = async (req, res) => {
         .json({ message: "No category breakdown data found." });
     }
 
-    res.json(data);
+    return res.json(data);
   } catch (err) {
     res
       .status(500)

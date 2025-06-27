@@ -10,15 +10,8 @@ const updateUserSchema = z
 
 const changePasswordSchema = z
   .object({
-    currentPassword: z.string().min(6, "Current password is required"),
-    newPassword: z
-      .string()
-      .min(6, "New password must be at least 6 characters"),
+    password: z.string().min(6, "password must be at least 8 characters"),
     email: z.string().email(),
   })
-  .refine((data) => data.newPassword === data.confirmNewPassword, {
-    path: ["confirmNewPassword"],
-    message: "Passwords do not match",
-  });
-
+  .strict();
 module.exports = { updateUserSchema, changePasswordSchema };

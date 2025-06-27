@@ -108,9 +108,8 @@ const changePassword = async (req, res) => {
 };
 
 const deleteUser = async (req, res) => {
-  const userData = req.body;
   try {
-    const response = await deleteUserService(userData);
+    const response = await deleteUserService(req);
     res.setHeader("Content-Type", "application/json");
     if (response) {
       return res.status(200).json({ ...response });
@@ -126,7 +125,7 @@ const emailValidation = async (req, res) => {
   const userData = req.body;
   res.setHeader("Content-Type", "application/json");
   try {
-    const response = await handleEmailValidateService(userData, req);
+    const response = await handleEmailValidateService(userData);
     if (typeof response === "boolean") {
       return res.status(404).json({ message: "User not Exits" });
     }
@@ -143,7 +142,7 @@ const otpVerification = async (req, res) => {
   const userData = req.body;
   res.setHeader("Content-Type", "application/json");
   try {
-    const response = await otpVerificationService(userData);
+    const response = await otpVerificationService(userData, req);
     if (typeof response === "boolean") {
       return res.status(404).json({ message: "User doesn't exits" });
     }

@@ -22,6 +22,10 @@ const getSummary = async (userId) => {
     ]);
 
     const budgetData = await budget.findOne({ userId: new ObjectId(userId) });
+
+    if (!budgetData) {
+      return 1;
+    }
     const budgetAmount = budgetData ? budgetData.budgetAmount : 0;
 
     const incomeData = summary.find((item) => item._id === "Income") || {

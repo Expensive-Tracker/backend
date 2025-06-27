@@ -1,30 +1,13 @@
 const { user } = require("../models/user");
-const cloudinary = require("cloudinary").v2;
-const nodemailer = require("nodemailer");
 const bcrypt = require("bcryptjs");
+const { transporter } = require("../config/email");
 const {
   generateToken,
   getCreatedAt,
   handleMakeUrl,
   generateOTP,
-} = require("../utils/helper");
+} = require("../utils/helper/index");
 const saltLevel = 10;
-
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
-  auth: {
-    user: process.env.MAILID,
-    pass: process.env.PASSWORD,
-  },
-});
-
-cloudinary.config({
-  cloud_name: process.env.IMAGE_SAVE_NAME,
-  api_key: process.env.IMAGE_SAVE_KEY,
-  api_secret: process.env.IMAGE_SAVE_API,
-});
 
 const registerUserServices = async (userData) => {
   const userExits = await user.findOne({ email: userData?.email }).exec();
@@ -171,18 +154,19 @@ const changePasswordService = async (userData) => {
   }
 };
 
-const deleteUserService = async (userData) => {
-  const userExits = await user.findOne({ _id: userData?._id });
-  if (userExits) {
-    const deletedUser = await user.findByIdAndDelete(userData?._id);
-    return { success: deletedUser ? "User deleted" : "Unable to delete user" };
+const deleteUserService = async (req) => {
+  const deletedUser = await user.findByIdAndDelete(req.user?._id);
+
+  if (deletedUser) {
+    return { success: "User deleted" };
   } else {
-    return false;
+    return { error: "User not found or could not be deleted" };
   }
 };
 
-const handleEmailValidateService = async (userData, req) => {
+const handleEmailValidateService = async (userData) => {
   const userExits = await user.findOne({ email: userData?.email });
+
   try {
     if (userExits) {
       const otp = generateOTP();
@@ -199,9 +183,10 @@ const handleEmailValidateService = async (userData, req) => {
         otpExpire,
       });
       const tokenPayload = {
-        _id: req.user._id,
-        email: req.user.email,
+        _id: userExits._id,
+        email: userExits.email,
       };
+
       const otpToken = generateToken(tokenPayload);
       return { otpToken };
     } else {
@@ -212,14 +197,20 @@ const handleEmailValidateService = async (userData, req) => {
   }
 };
 
-const otpVerificationService = async (userData) => {
+const otpVerificationService = async (userData, req) => {
   const userExits = await user.findOne({ email: userData?.email });
   if (userExits) {
     if (!userExits.otp || !userExits.otpExpire) return 1;
     if (new Date() > userExits.otpExpire) return "string";
     if (userData.otp !== userExits.otp) return undefined;
     await user.findByIdAndUpdate(userExits._id, { otp: "", otpExpire: null });
-    const correctOtpToken = generateToken({ _i });
+
+    const payloadToken = {
+      _id: userExits._id,
+      email: userExits.email,
+    };
+    const correctOtpToken = generateToken(payloadToken);
+
     return { message: "Otp is correct", correctOtpToken };
   } else {
     return false;

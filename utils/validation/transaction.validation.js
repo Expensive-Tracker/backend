@@ -13,12 +13,12 @@ const transactionSchema = z
 
 const updateTransactionSchema = z
   .object({
-    amount: z.string(),
-    type: z.enum(["Income", "Expense"]),
+    amount: z.string().optional(),
+    type: z.enum(["Income", "Expense"]).optional(),
     category: z.string().optional(),
     date: z.string().optional(),
     description: z.string().optional(),
-    recurring: z.boolean(),
+    recurring: z.boolean().optional(),
   })
   .strict();
 
