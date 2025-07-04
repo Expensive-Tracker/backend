@@ -110,14 +110,22 @@ const changePassword = async (req, res) => {
 const deleteUser = async (req, res) => {
   try {
     const response = await deleteUserService(req);
-    res.setHeader("Content-Type", "application/json");
-    if (response) {
-      return res.status(200).json({ ...response });
-    } else {
-      return res.status(404).json({ message: "User don't exits" });
+
+    if (response?.error) {
+      return res.status(400).json({ success: false, message: response.error });
     }
+
+    if (response?.success) {
+      return res.status(200).json({ success: true, ...response });
+    }
+
+    return res.status(404).json({ success: false, message: "User not found" });
   } catch (err) {
-    throw new Error(err?.message);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: err?.message || "Unknown error",
+    });
   }
 };
 

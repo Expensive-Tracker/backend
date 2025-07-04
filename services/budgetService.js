@@ -6,16 +6,7 @@ const mongoose = require("mongoose");
 const nodemailer = require("nodemailer");
 const { user } = require("../models/user");
 const { getCreatedAt } = require("../utils/helper");
-
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
-  auth: {
-    user: process.env.MAILID,
-    pass: process.env.PASSWORD,
-  },
-});
+const { transporter } = require("../config/email");
 
 const sendBudgetExceedNotification = async (
   userEmail,
@@ -39,11 +30,11 @@ const sendBudgetExceedNotification = async (
             <h3 style="color: #d32f2f; margin-top: 0;">Budget Details:</h3>
             <ul style="list-style: none; padding: 0;">
               <li><strong>Category:</strong> ${categoryName}</li>
-              <li><strong>Budget Limit:</strong> $${budgetAmount.toFixed(
+              <li><strong>Budget Limit:</strong> ₹${budgetAmount.toFixed(
                 2
               )}</li>
-              <li><strong>Amount Spent:</strong> $${spent.toFixed(2)}</li>
-              <li><strong>Exceeded by:</strong> $${exceededAmount.toFixed(
+              <li><strong>Amount Spent:</strong> ₹${spent.toFixed(2)}</li>
+              <li><strong>Exceeded by:</strong> ₹${exceededAmount.toFixed(
                 2
               )}</li>
             </ul>
@@ -81,7 +72,7 @@ const sendBudgetExceedNotification = async (
   }
 };
 
-const handleGetUserBudget = async (userId) => {
+const handleGetUserBudget = async (userId, month) => {
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     return "Invalid user ID.";
   }
@@ -93,7 +84,34 @@ const handleGetUserBudget = async (userId) => {
   const userEmail = userData?.email;
 
   const currentMonth = moment().format("MMMM YYYY");
+  const requestedMonth = month
+    ? moment(month, "YYYY-MM").format("MMMM YYYY")
+    : currentMonth;
   const previousMonth = moment().subtract(1, "month").format("MMMM YYYY");
+
+  if (requestedMonth !== currentMonth) {
+    const history = await budgetHistory.findOne({
+      userId,
+      month: requestedMonth,
+    });
+
+    if (!history) {
+      return "Budget history not available";
+    }
+
+    let totalSpent = 0;
+    const updatedCategories = (history.category || []).map((cat) => {
+      const spent = cat.budgetTransaction?.totalSpent || 0;
+      totalSpent += spent;
+      return cat;
+    });
+
+    return {
+      ...history.toObject(),
+      totalSpent,
+      totalRemain: history.budgetAmount - totalSpent,
+    };
+  }
 
   const transactions = await transaction.find({
     userId,
@@ -107,93 +125,90 @@ const handleGetUserBudget = async (userId) => {
   });
 
   let totalSpent = 0;
+  const updatedCategories = (userBudget.category || []).map((cat) => {
+    const spent = spentByCategory[cat.categoryName] || 0;
+    const remain = cat.subBudgetAmount - spent;
 
-  if (userBudget.month === currentMonth) {
-    const updatedCategories = (userBudget.category || []).map((cat) => {
-      const spent = spentByCategory[cat.categoryName] || 0;
-      const remain = cat.subBudgetAmount - spent;
+    totalSpent += spent;
 
-      totalSpent += spent;
+    if (spent > cat.subBudgetAmount && cat.subBudgetAmount > 0 && userEmail) {
+      const exceededAmount = spent - cat.subBudgetAmount;
+      const lastNotificationSent = cat.lastNotificationSent;
+      const shouldSendNotification =
+        !lastNotificationSent ||
+        !moment(lastNotificationSent).isSame(moment(), "month");
 
-      if (spent > cat.subBudgetAmount && cat.subBudgetAmount > 0 && userEmail) {
-        const exceededAmount = spent - cat.subBudgetAmount;
-        const lastNotificationSent = cat.lastNotificationSent;
-        const shouldSendNotification =
-          !lastNotificationSent ||
-          !moment(lastNotificationSent).isSame(moment(), "month");
+      if (shouldSendNotification) {
+        sendBudgetExceedNotification(
+          userEmail,
+          cat.categoryName,
+          spent,
+          cat.subBudgetAmount,
+          exceededAmount
+        ).catch((err) => {
+          console.error(
+            "Failed to send budget exceed notification:",
+            err.message
+          );
+        });
 
-        if (shouldSendNotification) {
-          sendBudgetExceedNotification(
-            userEmail,
-            cat.categoryName,
-            spent,
-            cat.subBudgetAmount,
-            exceededAmount
-          ).catch((err) => {
-            console.error(
-              "Failed to send budget exceed notification:",
-              err.message
-            );
-          });
-
-          cat.lastNotificationSent = new Date();
-        }
+        cat.lastNotificationSent = new Date();
       }
+    }
 
-      return {
-        ...cat.toObject(),
-        budgetTransaction: {
-          totalSpent: spent,
-          totalRemain: remain,
-        },
-        updatedAt: getCreatedAt(),
-        ...(cat.lastNotificationSent && {
-          lastNotificationSent: cat.lastNotificationSent,
-        }),
-      };
+    return {
+      ...cat.toObject(),
+      budgetTransaction: {
+        totalSpent: spent,
+        totalRemain: remain,
+      },
+      updatedAt: getCreatedAt(),
+      ...(cat.lastNotificationSent && {
+        lastNotificationSent: cat.lastNotificationSent,
+      }),
+    };
+  });
+
+  if (userBudget.month !== currentMonth) {
+    await budgetHistory.create({
+      userId: userBudget.userId,
+      budgetAmount: userBudget.budgetAmount,
+      category: userBudget.category || [],
+      month: previousMonth,
     });
 
+    const resetCategories = (userBudget.category || []).map((cat) => ({
+      categoryName: cat.categoryName,
+      subBudgetAmount: cat.subBudgetAmount,
+      budgetTransaction: {
+        totalSpent: 0,
+        totalRemain: cat.subBudgetAmount,
+      },
+      updatedAt: getCreatedAt(),
+      lastNotificationSent: null,
+    }));
+
     userBudget.set({
-      category: updatedCategories,
+      category: resetCategories,
+      month: currentMonth,
       updatedAt: getCreatedAt(),
     });
 
     await userBudget.save();
-
-    return {
-      ...userBudget.toObject(),
-      totalSpent,
-      totalRemain: userBudget.budgetAmount - totalSpent,
-    };
   }
 
-  await budgetHistory.create({
-    userId: userBudget.userId,
-    budgetAmount: userBudget.budgetAmount,
-    category: userBudget.category || [],
-    month: previousMonth,
-  });
-
-  const resetCategories = (userBudget.category || []).map((cat) => ({
-    categoryName: cat.categoryName,
-    subBudgetAmount: 0,
-    budgetTransaction: {
-      totalSpent: 0,
-      totalRemain: 0,
-    },
-    updatedAt: getCreatedAt(),
-    lastNotificationSent: null,
-  }));
-
   userBudget.set({
-    category: resetCategories,
-    month: currentMonth,
+    category: updatedCategories,
     updatedAt: getCreatedAt(),
   });
 
   await userBudget.save();
 
-  return userBudget.toObject();
+  return {
+    ...userBudget.toObject(),
+    totalSpent,
+    totalRemain: userBudget.budgetAmount - totalSpent,
+  };
 };
 
 const handleGetSpecificSubBudget = async (budgetId, subBudgetId) => {

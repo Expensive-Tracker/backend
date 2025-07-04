@@ -4,3 +4,5 @@ cloudinary.config({
   api_key: process.env.IMAGE_SAVE_KEY,
   api_secret: process.env.IMAGE_SAVE_API,
 });
+
+module.exports = { cloudinary };

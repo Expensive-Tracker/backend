@@ -1,4 +1,6 @@
 const { user } = require("../models/user");
+const { budget } = require("../models/budget");
+const transaction = require("../models/transaction");
 const bcrypt = require("bcryptjs");
 const { transporter } = require("../config/email");
 const {
@@ -6,7 +8,10 @@ const {
   getCreatedAt,
   handleMakeUrl,
   generateOTP,
+  extractPublicIdFromUrl,
 } = require("../utils/helper/index");
+const { cloudinary } = require("../config/cloudinary");
+const budgetHistory = require("../models/budgetHistory");
 const saltLevel = 10;
 
 const registerUserServices = async (userData) => {
@@ -155,12 +160,43 @@ const changePasswordService = async (userData) => {
 };
 
 const deleteUserService = async (req) => {
-  const deletedUser = await user.findByIdAndDelete(req.user?._id);
+  const userId = req.user?._id;
 
-  if (deletedUser) {
-    return { success: "User deleted" };
-  } else {
-    return { error: "User not found or could not be deleted" };
+  if (!userId) {
+    return { error: "User ID is missing" };
+  }
+
+  try {
+    const userData = await user.findById(userId);
+
+    if (!userData) {
+      return { error: "User not found" };
+    }
+
+    if (userData.profilePic) {
+      const publicId = extractPublicIdFromUrl(userData.profilePic);
+      console.log(publicId);
+
+      if (publicId) {
+        try {
+          await cloudinary.uploader.destroy(publicId);
+        } catch (err) {
+          console.error("Error deleting image from Cloudinary:", err.message);
+        }
+      }
+    }
+
+    await transaction.deleteMany({ userId });
+    await budget.deleteMany({ userId });
+    await budgetHistory.deleteMany({ userId });
+    await user.findByIdAndDelete(userId);
+
+    return {
+      success: "User and all related data deleted",
+    };
+  } catch (err) {
+    console.error("Error in deleteUserService:", err.message);
+    return { error: "Something went wrong during deletion" };
   }
 };
 

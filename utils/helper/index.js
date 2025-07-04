@@ -1,4 +1,4 @@
-const cloudinary = require("cloudinary").v2;
+const { cloudinary } = require("../../config/cloudinary");
 const JWT_SECRET = process.env.JWT_SECRET;
 const jwt = require("jsonwebtoken");
 const fs = require("fs");

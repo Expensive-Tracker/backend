@@ -12,14 +12,25 @@ const {
 // Get budget for a user
 const getBudget = async (req, res) => {
   const userId = req.params.id;
+  const { month } = req.query;
 
   try {
-    const result = await handleGetUserBudget(userId);
+    const result = await handleGetUserBudget(userId, month);
 
-    if (typeof result === "string") {
+    if (result === "Invalid user ID.") {
+      return res.status(400).json({ message: "Invalid user ID." });
+    }
+
+    if (result === "No budget found for user.") {
       return res
         .status(404)
         .json({ message: "No budget found for this user." });
+    }
+
+    if (result === "Budget history not available") {
+      return res
+        .status(404)
+        .json({ message: "Budget history not available for this month." });
     }
 
     return res.status(200).json({
